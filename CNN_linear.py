@@ -4,6 +4,9 @@ sess = tf.InteractiveSession()
 
 length = 1000
 nLabel = 63
+nLayer1 = 64
+nLayer2 = 128
+nFCLayer = 1024
 
 ### Variables
 x = tf.placeholder(tf.float32, shape=[None, length])
@@ -26,25 +29,25 @@ def bias_helper(shape):
 	return tf.Variable(initial)
 
 ### Convolutional Layer 1
-W_conv1 = weight_helper([5, 1, 64])
-b_conv1 = bias_helper([64])
+W_conv1 = weight_helper([5, 1, nLayer1])
+b_conv1 = bias_helper([nLayer1])
 x_image = tf.reshape(x, [-1, length, 1])
 
 h_conv1 = tf.nn.relu(conv1d(x_image, W_conv1) + b_conv1)
 h_pool1 = max_pool(h_conv1)
 
 ### Convolutional Layer 2
-W_conv2 = weight_helper([5, 64, 128])
-b_conv2 = bias_helper([128])
+W_conv2 = weight_helper([5, nLayer1, nLayer2])
+b_conv2 = bias_helper([nLayer2])
 
 h_conv2 = tf.nn.relu(conv1d(h_pool1, W_conv2) + b_conv2)
 h_pool2 = max_pool(h_conv2)
 
 ### Fully-connected Layer
-W_fc1 = weight_helper([63*128, 1024])
-b_fc1 = bias_helper([1024])
+W_fc1 = weight_helper([63*nLayer2, nFCLayer])
+b_fc1 = bias_helper([nFCLayer])
 
-h_pool2_flat = tf.reshape(h_pool2, [-1, 63*128])
+h_pool2_flat = tf.reshape(h_pool2, [-1, 63*nLayer2])
 h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
 ### Dropout
@@ -52,7 +55,7 @@ keep_prob = tf.placeholder(tf.float32)
 h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
 ### Readout Layer
-W_fc2 = weight_helper([1024, nLabel])
+W_fc2 = weight_helper([nFCLayer, nLabel])
 b_fc2 = bias_helper([nLabel])
 
 y_conv = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
@@ -72,9 +75,9 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 sess.run(tf.global_variables_initializer())
 
-for i in range(1000):
+for i in range(138*100):
 	batch = get_data('train', 20)
-	if i%100 == 0:
+	if i%138 == 0:
 		train_accuracy = accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
 		print("step %d, training accuracy %g"%(i, train_accuracy))
 		# saver.save(sess=session, save_path=save_path)
