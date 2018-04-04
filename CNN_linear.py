@@ -6,86 +6,70 @@ length = 1000
 nLabel = 63
 nLayer1 = 64
 nLayer2 = 128
-nFCLayer = 1024
+nLayerFC = 1024
 
-### Variables
-x = tf.placeholder(tf.float32, shape=[None, length])
-y = tf.placeholder(tf.float32, shape=[None, nLabel])
+def conv_layer(input, size_in, size_out, name="conv"):
+	with tf.name_scope(name):
+		w = tf.Variable(tf.truncated_normal([5, size_in, size_out], stddev=0.1), name="W")
+		b = tf.Variable(tf.constant(0.1, shape=[size_out]), name="B")
+		conv = tf.nn.conv1d(input, w, stride=1, padding='SAME')
+		act = tf.nn.relu(conv + b)
+		tf.summary.histogram("weights", w)
+		tf.summary.histogram("biases", b)
+		tf.summary.histogram("activations", act)
+		return tf.layers.max_pooling1d(act, pool_size=2, strides=2, padding='SAME')
 
-### Convolution and Pooling
-def conv1d(x, W):
-	return tf.nn.conv1d(x, W, stride=2, padding='SAME')
+def fc_layer(input, size_in, size_out, name="fc"):
+	with tf.name_scope(name):
+		w = tf.Variable(tf.truncated_normal([size_in, size_out], stddev=0.1), name="W")
+		b = tf.Variable(tf.constant(0.1, shape=[size_out]), name="B")
+		act = tf.nn.relu(tf.matmul(input, w) + b)
+		tf.summary.histogram("weights", w)
+		tf.summary.histogram("biases", b)
+		tf.summary.histogram("activations", act)
+		return act
 
-def max_pool(x):
-	return tf.layers.max_pooling1d(x, pool_size=2, strides=2, padding='SAME')
-
-### Weights and Biases Initialization
-def weight_helper(shape):
-	initial = tf.random_normal(shape, stddev=0.1)
-	return tf.Variable(initial)
-
-def bias_helper(shape):
-	initial = tf.constant(0.1, shape=shape)
-	return tf.Variable(initial)
-
-### Convolutional Layer 1
-W_conv1 = weight_helper([5, 1, nLayer1])
-b_conv1 = bias_helper([nLayer1])
+x = tf.placeholder(tf.float32, shape=[None, length], name="x")
 x_image = tf.reshape(x, [-1, length, 1])
+y = tf.placeholder(tf.float32, shape=[None, nLabel], name="labels")
 
-h_conv1 = tf.nn.relu(conv1d(x_image, W_conv1) + b_conv1)
-h_pool1 = max_pool(h_conv1)
+conv1 = conv_layer(x_image, 1, nLayer1, "conv1")
+conv2 = conv_layer(conv1, nLayer1, nLayer2, "conv2")
 
-### Convolutional Layer 2
-W_conv2 = weight_helper([5, nLayer1, nLayer2])
-b_conv2 = bias_helper([nLayer2])
+flattened = tf.reshape(conv2, [-1, 250*nLayer2])
+fc1 = fc_layer(flattened, 250*nLayer2, nLayerFC, "fc1")
+logits = fc_layer(fc1, nLayerFC, nLabel, "fc2")
 
-h_conv2 = tf.nn.relu(conv1d(h_pool1, W_conv2) + b_conv2)
-h_pool2 = max_pool(h_conv2)
+with tf.name_scope("xent"):
+	xent = tf.reduce_mean(
+		tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=logits))
+tf.summary.scalar('cross_entropy', xent)
 
-### Fully-connected Layer
-W_fc1 = weight_helper([63*nLayer2, nFCLayer])
-b_fc1 = bias_helper([nFCLayer])
+with tf.name_scope("train"):
+	train_step = tf.train.AdamOptimizer(1e-4).minimize(xent)
 
-h_pool2_flat = tf.reshape(h_pool2, [-1, 63*nLayer2])
-h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-
-### Dropout
-keep_prob = tf.placeholder(tf.float32)
-h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-
-### Readout Layer
-W_fc2 = weight_helper([nFCLayer, nLabel])
-b_fc2 = bias_helper([nLabel])
-
-y_conv = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
-
-### Train and Evaluate the Model
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=y_conv))
-train_step = tf.train.AdamOptimizer(1e-3).minimize(cross_entropy) # 1e-4
-correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-### Saver Function
-# saver = tf.train.Saver()
-# save_dir = 'checkpoints/'
-# if not os.path.exists(save_dir):
-# 	or.makedirs(save_dir)
-# save_path = os.path.join(save_dir, 'best_validation')
+with tf.name_scope("accuracy"):
+	correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(y, 1))
+	accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+tf.summary.scalar('accruacy', accuracy)
 
 sess.run(tf.global_variables_initializer())
 
-for i in range(138*100):
-	batch = get_data('train', 20)
-	if i%138 == 0:
-		train_accuracy = accuracy.eval(feed_dict={x: batch[0], y: batch[1], keep_prob: 1.0})
-		print("step %d, training accuracy %g"%(i, train_accuracy))
-		# saver.save(sess=session, save_path=save_path)
-	train_step.run(feed_dict={x: batch[0], y: batch[1], keep_prob: 0.5})
-
-testset = get_data('test', 30)
-print("test accuracy %g"%accuracy.eval(feed_dict={x: testset[0], y: testset[1], keep_prob: 1.0}))
+merged_summary = tf.summary.merge_all()
+writer = tf.summary.FileWriter("/tmp/neuralNetProject2018/5")
+writer.add_graph(sess.graph)
 
 
 
-# saver.restore(sess=session, save_path=save_path)
+
+for i in range(2000):
+	batch = get_data('train', 100)
+
+	if i % 5 == 0:
+		s = sess.run(merged_summary, feed_dict={x:batch[0], y: batch[1]})
+		writer.add_summary(s, i)
+		print(i)
+	sess.run(train_step, feed_dict={x: batch[0], y: batch[1]})	
+
+testset = get_data('test', 100)
+print("test accuracy %g"%accuracy.eval(feed_dict={x: testset[0], y: testset[1]}))
