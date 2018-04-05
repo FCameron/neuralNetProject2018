@@ -4,8 +4,9 @@ import os
 import os.path
 
 length = 1000
-nLabel = 63
-LOGDIR = "~/neuralNetProject2018/tensorboard/"
+nLabel = 13
+LOGDIR = "tensorboard/"
+LABELS = "metadata.tsv"
 
 def conv_layer(input, size_in, size_out, name="conv"):
 	with tf.name_scope(name):
@@ -72,15 +73,24 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 		accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 		tf.summary.scalar("accuracy", accuracy)
 
+	with tf.name_scope("test_accuracy"):
+
+
 	summ = tf.summary.merge_all()
 
-	embedding = tf.Variable(tf.zeros([300, embedding_size]), name="test_embedding")
+	embedding = tf.Variable(tf.zeros([308, embedding_size]), name="test_embedding")
 	assignment = embedding.assign(embedding_input)
 	saver = tf.train.Saver()
 
 	sess.run(tf.global_variables_initializer())
 	writer = tf.summary.FileWriter(LOGDIR + hparam)
 	writer.add_graph(sess.graph)
+	testset = get_data("test", 308, tsvlocation=LOGDIR+hparam+'/'+LABELS)
+	config = tf.contrib.tensorboard.plugins.projector.ProjectorConfig()
+	embedding_config = config.embeddings.add()
+	embedding_config.tensor_name = embedding.name
+	embedding_config.metadata_path = LABELS
+	tf.contrib.tensorboard.plugins.projector.visualize_embeddings(writer, config)
 
 	for i in range(2000):
 		batch = get_data("train", 100)
@@ -89,9 +99,8 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 			writer.add_summary(s, i)
 		if i % 500 == 0:
 			print(i)
-			testset = get_data("test", 300)
 			sess.run(assignment, feed_dict={x: testset[0], y: testset[1]})
-			saver.save(sess, os.path.join(LOGDIR, "model.ckpt"), i)
+			saver.save(sess, os.path.join(LOGDIR+hparam+"/", "model.ckpt"), i)
 		sess.run(train_step, feed_dict={x: batch[0], y: batch[1]})	
 
 def make_hparam_string(learning_rate, use_two_fc, use_two_conv):
@@ -103,7 +112,7 @@ def main():
 	for learning_rate in [1E-3, 1E-4, 1E-5]:
 
 		for use_two_fc in [False, True]:
-			for use_two_conv in [False, True]:
+			for use_two_conv in [True, False]:
 				hparam = make_hparam_string(learning_rate, use_two_fc, use_two_conv)
 				print('Starting run for %s' % hparam)
 
