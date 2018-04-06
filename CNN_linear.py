@@ -4,8 +4,8 @@ import os
 import os.path
 
 length = 1000
-nLabel = 13
-LOGDIR = "tensorboard/"
+nLabel = 63
+LOGDIR = "tensorboard63/"
 LABELS = "metadata.tsv"
 
 def conv_layer(input, size_in, size_out, name="conv"):
@@ -50,13 +50,9 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 	if use_two_fc:
 		fc1 = fc_layer(flattened, 250*64, 1024, "fc1")
 		relu = tf.nn.relu(fc1)
-		embedding_input = relu
 		tf.summary.histogram("fc1/relu", relu)
-		embedding_size = 1024
 		logits = fc_layer(fc1, 1024, nLabel, "fc2")
 	else:
-		embedding_input = flattened
-		embedding_size = 250*64
 		logits = fc_layer(flattened, 250*64, nLabel, "fc")
 
 	with tf.name_scope("xent"):
@@ -71,36 +67,25 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 	with tf.name_scope("accuracy"):
 		correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(y, 1))
 		accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-		tf.summary.scalar("accuracy", accuracy)
-
-	with tf.name_scope("test_accuracy"):
-
+		accuracy_summary = tf.summary.scalar("accuracy", accuracy)
 
 	summ = tf.summary.merge_all()
 
-	embedding = tf.Variable(tf.zeros([308, embedding_size]), name="test_embedding")
-	assignment = embedding.assign(embedding_input)
-	saver = tf.train.Saver()
-
 	sess.run(tf.global_variables_initializer())
-	writer = tf.summary.FileWriter(LOGDIR + hparam)
-	writer.add_graph(sess.graph)
-	testset = get_data("test", 308, tsvlocation=LOGDIR+hparam+'/'+LABELS)
-	config = tf.contrib.tensorboard.plugins.projector.ProjectorConfig()
-	embedding_config = config.embeddings.add()
-	embedding_config.tensor_name = embedding.name
-	embedding_config.metadata_path = LABELS
-	tf.contrib.tensorboard.plugins.projector.visualize_embeddings(writer, config)
+	train_writer = tf.summary.FileWriter(LOGDIR + hparam + "/train")
+	train_writer.add_graph(sess.graph)
+	test_writer = tf.summary.FileWriter(LOGDIR + hparam + "/test")
 
-	for i in range(2000):
+	for i in range(2001):
 		batch = get_data("train", 100)
 		if i % 5 == 0:
-			[train_accuracy, s] = sess.run([accuracy, summ], feed_dict={x:batch[0], y: batch[1]})
-			writer.add_summary(s, i)
-		if i % 500 == 0:
+			[train_accuracy, s] = sess.run([accuracy, summ], feed_dict={x:batch[0], y:batch[1]})
+			train_writer.add_summary(s, i)
+		if i % 50 == 0:
+			test_batch = get_data("test", 100)
+			test_accuracy = sess.run(accuracy_summary, feed_dict={x:test_batch[0], y:test_batch[1]})
+			test_writer.add_summary(test_accuracy, i)
 			print(i)
-			sess.run(assignment, feed_dict={x: testset[0], y: testset[1]})
-			saver.save(sess, os.path.join(LOGDIR+hparam+"/", "model.ckpt"), i)
 		sess.run(train_step, feed_dict={x: batch[0], y: batch[1]})	
 
 def make_hparam_string(learning_rate, use_two_fc, use_two_conv):
