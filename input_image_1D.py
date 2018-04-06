@@ -16,7 +16,7 @@ y_data = []
 all_data = []
 test_data = []
 train_data = []
-num_classes = 13
+num_classes = 63
 
 def unpickle_it(pickleFile):
 	pickle_in = open("CNN_linear_data/skullSpline/skullSpline%s.pickle" % (pickleFile),"rb") 
@@ -38,8 +38,7 @@ def get_data(data_set, batch_size, tsvlocation=""):
 		for i in range(len(x_data)):
 			for j in range(len(x_data[i])):
 				all_data.append([x_data[i][j][:],y_data[j]])
-
-				# for k in range(20):
+				# for k in range(30):
 				# 	all_data.append([np.roll(x_data[i][j][:],k*10),y_data[j]])
 				# 	all_data.append([np.flip(np.roll(x_data[i][j][:],k*10),0), y_data[j]])
 				# all_data.append([np.flip(x_data[i][j][:],0), y_data[j]])
@@ -65,21 +64,17 @@ def get_data(data_set, batch_size, tsvlocation=""):
 	end = index_used[test_or_train] + batch_size
 
 	if end >= len(data_used):
-		end = len(data_used)
-		index_used[test_or_train] = 0
+		index_used[test_or_train] = end - len(data_used)
 
-	for i in range(begin, end):
+	for j in range(begin, end):
+		i = j
+		if j >= len(data_used):
+			i = j - len(data_used)
 		x_data_[index] = data_used[i,0]
-		y_data_[index][int((data_used[i,1]+3)*2)] = 1
+		y_data_[index][int((data_used[i,1]+3)*10)] = 1
 		index += 1
 
 	index_used[test_or_train] += batch_size
-
-	if (data_set == 'test'):
-		with open(tsvlocation, "w") as record_metadata:
-			record_metadata.truncate()
-			for i in range(begin, end):
-				record_metadata.write("%s\n" % (int((data_used[i,1]+3)*2)))
 
 	return x_data_, y_data_
 
