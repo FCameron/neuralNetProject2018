@@ -4,8 +4,8 @@ import os
 import os.path
 
 length = 1000
-nLabel = 63
-LOGDIR = "tensorboard63/"
+nLabel = 32
+LOGDIR = "tensorboardphasetry1/"
 LABELS = "metadata.tsv"
 
 def conv_layer(input, size_in, size_out, name="conv"):
@@ -94,10 +94,10 @@ def make_hparam_string(learning_rate, use_two_fc, use_two_conv):
 	return "lr_%.0E,%s,%s" % (learning_rate, conv_param, fc_param)
 
 def main():
-	for learning_rate in [1E-3, 1E-4, 1E-5]:
+	for learning_rate in [1E-4]:#[1E-3, 1E-4, 1E-5]:
 
-		for use_two_fc in [False, True]:
-			for use_two_conv in [True, False]:
+		for use_two_fc in [True]:#[False, True]:
+			for use_two_conv in [True]:#[True, False]:
 				hparam = make_hparam_string(learning_rate, use_two_fc, use_two_conv)
 				print('Starting run for %s' % hparam)
 

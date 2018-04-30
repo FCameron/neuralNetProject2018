@@ -16,7 +16,23 @@ y_data = []
 all_data = []
 test_data = []
 train_data = []
-num_classes = 63
+num_classes = 32
+greatestval = 0
+
+
+def edit_spline(spline):
+	global greatestval
+	newspline = []
+	for i in range(len(spline)-10):
+		avg = 0
+		for j in range(10):
+			avg += int(spline[i+j])
+		if (avg >= 1000):
+			newspline.append(spline[i])
+	if (greatestval < len(newspline)):
+		greatestval = len(newspline)
+	return newspline
+
 
 def unpickle_it(pickleFile):
 	pickle_in = open("CNN_linear_data/skullSpline/skullSpline%s.pickle" % (pickleFile),"rb") 
@@ -31,13 +47,36 @@ def get_data(data_set, batch_size, tsvlocation=""):
 	if (initialized == False):
 		for i in range(len(skull_set)):
 			x_data.append(unpickle_it(skull_set[i]))
-			for y_ in ReadFile('CNN_linear_data/phaseChange/phaseChange%s.csv' % (skull_set[i]), 2):
+			for y_ in ReadFile('CNN_linear_data/phaseChange/phaseChange%s.csv' % (skull_set[i]), 'phase'):
+			# for y_ in ReadFile('CNN_linear_data/ampChange/ampChange%s.csv' % (skull_set[i]), 'amp'):
+				# y_abs = np.absolute(y_[0])
+				# y_data.append(y_abs)
 				y_data.append(y_[1])
 		x_data = list(x_data)
 		y_data = list(y_data)
+		x_data2 = []
+		for k in x_data:
+			for i in k:
+				# x_data2.append(edit_spline(i))
+				x_data2.append(i)
+		x_data2 = list(x_data2)
+		# x_data3 = x_data2
+		# for i in range(len(x_data3)):
+		# 	x_data2[i] = np.zeros(244)
+		# 	for j in range(len(x_data3[i])):
+		# 		x_data2[i][j] = x_data3[i][j]
+		# x_data3 = []
+		x_data = x_data2
+		x_data2 = []
+		# with open('CNN_linear_data/ampChange/ampcheck.csv', "w") as output:
+		# 	writer = csv.writer(output, lineterminator='\n')
+		# 	for val in x_data2:
+		# 		writer.writerow([val]) 
 		for i in range(len(x_data)):
-			for j in range(len(x_data[i])):
-				all_data.append([x_data[i][j][:],y_data[j]])
+			all_data.append([x_data[i],y_data[i]]) 
+		# for i in range(len(x_data)):
+		# 	for j in range(len(x_data[i])):
+		# 		all_data.append([x_data[i][j][:],y_data[j]])
 				# for k in range(30):
 				# 	all_data.append([np.roll(x_data[i][j][:],k*10),y_data[j]])
 				# 	all_data.append([np.flip(np.roll(x_data[i][j][:],k*10),0), y_data[j]])
@@ -71,7 +110,8 @@ def get_data(data_set, batch_size, tsvlocation=""):
 		if j >= len(data_used):
 			i = j - len(data_used)
 		x_data_[index] = data_used[i,0]
-		y_data_[index][int((data_used[i,1]+3)*10)] = 1
+		y_data_[index][int((data_used[i,1]+3.2)*5)] = 1
+		# y_data_[index][int((data_used[i,1]/.01))] = 1
 		index += 1
 
 	index_used[test_or_train] += batch_size
@@ -82,7 +122,17 @@ def ReadFile(FileName, Outputs, delimiter=","):
 	assert os.path.exists(FileName)
 
 	for l in csv.reader(open(FileName), delimiter=delimiter):
-		if Outputs == 2:
+		if Outputs == 'phase':
 			yield float(l[0]), float(l[1])
+		elif Outputs == 'amp':
+			yield complex(l[2]), float(l[0])
 		else:
 			yield float(l[0]), float(l[1]), float(l[2])
+
+
+
+
+
+
+
+
