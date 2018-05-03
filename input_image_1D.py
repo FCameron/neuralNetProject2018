@@ -96,10 +96,10 @@ def get_data(data_set, batch_size, image_length):
 
 	# Loading the data
 	index = 0
-	for i in range(begin, end):
-		temp_i = i
-		if i >= len(data_used):
-			temp_i = i - len(data_used)
+	for j in range(begin, end):
+		i = j
+		if j >= len(data_used):
+			i = j - len(data_used)
 		image_data[index] = data_used[i,0]
 		
 		# Here it creates the one-hot encoded vector based on the number of buckets
