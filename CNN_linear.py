@@ -1,10 +1,11 @@
+# @cgiarrusso
 from input_image_1D import get_data
 import tensorflow as tf 
 import os
 import os.path
 
 length = 1000
-nLabel = 32
+nLabel = 34
 LOGDIR = "tensorboardphasetry1/"
 LABELS = "metadata.tsv"
 
@@ -77,12 +78,12 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 	test_writer = tf.summary.FileWriter(LOGDIR + hparam + "/test")
 
 	for i in range(2001):
-		batch = get_data("train", 100)
+		batch = get_data("train", 100, length)
 		if i % 5 == 0:
 			[train_accuracy, s] = sess.run([accuracy, summ], feed_dict={x:batch[0], y:batch[1]})
 			train_writer.add_summary(s, i)
 		if i % 50 == 0:
-			test_batch = get_data("test", 100)
+			test_batch = get_data("test", 100, length)
 			test_accuracy = sess.run(accuracy_summary, feed_dict={x:test_batch[0], y:test_batch[1]})
 			test_writer.add_summary(test_accuracy, i)
 			print(i)
