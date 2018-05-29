@@ -5,8 +5,8 @@ import os
 import os.path
 
 length = 1000
-nLabel = 34
-LOGDIR = "tensorboardphasetry1/"
+nLabel = 1
+LOGDIR = "tensorboardmk6/"
 LABELS = "metadata.tsv"
 
 def conv_layer(input, size_in, size_out, name="conv"):
@@ -57,17 +57,23 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 		logits = fc_layer(flattened, 250*64, nLabel, "fc")
 
 	with tf.name_scope("xent"):
-		xent = tf.reduce_mean(
-			tf.nn.softmax_cross_entropy_with_logits(
-				labels=y, logits=logits), name="xent")
+		error1 = tf.abs(logits-y)
+		error2 = tf.abs(logits+6.28-y)
+		error3 = tf.abs(logits-6.28-y)
+		xent = tf.reduce_mean(tf.pow(tf.minimum(tf.minimum(error1, error2), error3), 2), name="xent")
+		# xent = tf.reduce_sum(tf.pow((logits-y)/y, 2)*100, name="xent")
 		tf.summary.scalar("xent", xent)
 
 	with tf.name_scope("train"):
 		train_step = tf.train.AdamOptimizer(learning_rate).minimize(xent)
 
 	with tf.name_scope("accuracy"):
-		correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(y, 1))
-		accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+		error11 = tf.abs(logits-y)
+		error22 = tf.abs(logits+6.28-y)
+		error33 = tf.abs(logits-6.28-y)
+		correct_prediction = tf.reduce_mean(tf.pow(tf.minimum(tf.minimum(error11, error22), error33), 2))
+		# correct_prediction = tf.reduce_sum(tf.pow((logits-y)/y, 2)*100)
+		accuracy = tf.cast(correct_prediction, tf.float32)
 		accuracy_summary = tf.summary.scalar("accuracy", accuracy)
 
 	summ = tf.summary.merge_all()
@@ -77,7 +83,7 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 	train_writer.add_graph(sess.graph)
 	test_writer = tf.summary.FileWriter(LOGDIR + hparam + "/test")
 
-	for i in range(2001):
+	for i in range(5001):
 		batch = get_data("train", 100, length)
 		if i % 5 == 0:
 			[train_accuracy, s] = sess.run([accuracy, summ], feed_dict={x:batch[0], y:batch[1]})
@@ -95,7 +101,7 @@ def make_hparam_string(learning_rate, use_two_fc, use_two_conv):
 	return "lr_%.0E,%s,%s" % (learning_rate, conv_param, fc_param)
 
 def main():
-	for learning_rate in [1E-4]:#[1E-3, 1E-4, 1E-5]:
+	for learning_rate in [1E-2]:#[1E-3, 1E-4, 1E-5]:
 
 		for use_two_fc in [True]:#[False, True]:
 			for use_two_conv in [True]:#[True, False]:
