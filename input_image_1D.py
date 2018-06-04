@@ -12,7 +12,7 @@ import random
 # amp_buckets is a list with the ranges of the buckets
 skull_set = [43215, 43214, 43203]
 one_hot = False
-use_phase = False
+use_phase = True
 num_buckets = 1
 amp_buckets = [0, 0.05382, 0.06636, 0.07801, 0.08921, 0.09957, 0.10979, 0.11991, 0.13095, 0.14261, 0.15813, 0.18544, 0.3305]
 
@@ -52,7 +52,7 @@ def get_data(data_set, batch_size, image_length):
 			skull_data.append(unpickle_it(skull_set[i]))
 			for j in ReadFile('CNN_linear_data/elementData/%s.csv' % (skull_set[i])):
 				if use_phase:
-					feature_set_data.append(j[1])
+					feature_set_data.append(j[1]+3.14159265)
 				else:
 					j_abs = np.absolute(j[2])
 					feature_set_data.append(j_abs)
@@ -130,7 +130,7 @@ def get_data(data_set, batch_size, image_length):
 								feature_set_data[index][k-1] = 1
 								feature_set_data[index][k+1] = 1
 		else:
-			feature_set_data[index][0]=data_used[i,1]+3.14159265
+			feature_set_data[index][0]=data_used[i,1]
 		index += 1
 
 	# Saving the last index it left off at

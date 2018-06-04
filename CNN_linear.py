@@ -3,10 +3,11 @@ from input_image_1D import get_data
 import tensorflow as tf 
 import os
 import os.path
+import csv
 
 length = 1000
 nLabel = 1
-LOGDIR = "tensorboardmk6/"
+LOGDIR = "tensorboard4/"
 LABELS = "metadata.tsv"
 
 def conv_layer(input, size_in, size_out, name="conv"):
@@ -56,43 +57,67 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 	else:
 		logits = fc_layer(flattened, 250*64, nLabel, "fc")
 
+	global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
+
 	with tf.name_scope("xent"):
 		error1 = tf.abs(logits-y)
 		error2 = tf.abs(logits+6.28-y)
 		error3 = tf.abs(logits-6.28-y)
-		xent = tf.reduce_mean(tf.pow(tf.minimum(tf.minimum(error1, error2), error3), 2), name="xent")
-		# xent = tf.reduce_sum(tf.pow((logits-y)/y, 2)*100, name="xent")
+		xent = tf.reduce_sum(tf.pow(tf.minimum(tf.minimum(error1, error2), error3), 2), name="xent")
+		# xent = tf.reduce_sum(tf.pow((logits-y)/y, 2), name="xent")
 		tf.summary.scalar("xent", xent)
 
 	with tf.name_scope("train"):
-		train_step = tf.train.AdamOptimizer(learning_rate).minimize(xent)
+		train_step = tf.train.AdamOptimizer(learning_rate).minimize(xent, global_step=global_step)
 
 	with tf.name_scope("accuracy"):
 		error11 = tf.abs(logits-y)
 		error22 = tf.abs(logits+6.28-y)
 		error33 = tf.abs(logits-6.28-y)
 		correct_prediction = tf.reduce_mean(tf.pow(tf.minimum(tf.minimum(error11, error22), error33), 2))
-		# correct_prediction = tf.reduce_sum(tf.pow((logits-y)/y, 2)*100)
+		# correct_prediction = tf.reduce_mean(tf.pow((logits-y), 2))
 		accuracy = tf.cast(correct_prediction, tf.float32)
 		accuracy_summary = tf.summary.scalar("accuracy", accuracy)
 
 	summ = tf.summary.merge_all()
 
-	sess.run(tf.global_variables_initializer())
+	saver = tf.train.Saver()
+	save_dir = 'checkpoints/' + LOGDIR + hparam + '/'
+	if not os.path.exists(save_dir):
+		os.makedirs(save_dir)
+
+	try:
+		print('Trying:')
+		last_chk_path = tf.train.latest_checkpoint(checkpoint_dir=save_dir)
+		saver.restore(sess, save_path=last_chk_path)
+		print('success')
+	except:
+		print('failed')
+		sess.run(tf.global_variables_initializer())
+
 	train_writer = tf.summary.FileWriter(LOGDIR + hparam + "/train")
 	train_writer.add_graph(sess.graph)
 	test_writer = tf.summary.FileWriter(LOGDIR + hparam + "/test")
 
-	for i in range(5001):
-		batch = get_data("train", 100, length)
-		if i % 5 == 0:
-			[train_accuracy, s] = sess.run([accuracy, summ], feed_dict={x:batch[0], y:batch[1]})
-			train_writer.add_summary(s, i)
-		if i % 50 == 0:
+	for i in range(2000):
+		batch = get_data("train", 1000, length)
+		[i_global,train_accuracy, s] = sess.run([global_step,accuracy, summ], feed_dict={x:batch[0], y:batch[1]})
+		train_writer.add_summary(s, i_global)
+		if i_global % 5 == 0:
 			test_batch = get_data("test", 100, length)
-			test_accuracy = sess.run(accuracy_summary, feed_dict={x:test_batch[0], y:test_batch[1]})
-			test_writer.add_summary(test_accuracy, i)
-			print(i)
+			# [test_accuracy] = sess.run([accuracy_summary], feed_dict={x:test_batch[0], y:test_batch[1]})
+			[print_accuracy, test_accuracy, y_estimation, y_truth] = sess.run([accuracy, accuracy_summary, logits, y], feed_dict={x:test_batch[0], y:test_batch[1]})
+			test_writer.add_summary(test_accuracy, i_global)
+			print("%s \t %s" % (i_global, print_accuracy))
+			saver.save(sess, save_path=save_dir, global_step=i_global)
+			with open(LOGDIR + hparam + '/truthstep%s.csv' % i_global, "w") as output:		
+				writer = csv.writer(output, lineterminator='\n')		
+				for val in y_truth:		
+					writer.writerow([val])
+			with open(LOGDIR + hparam + '/estimationstep%s.csv' % i_global, "w") as output:		
+				writer = csv.writer(output, lineterminator='\n')		
+				for val in y_estimation:		
+					writer.writerow([val]) 
 		sess.run(train_step, feed_dict={x: batch[0], y: batch[1]})	
 
 def make_hparam_string(learning_rate, use_two_fc, use_two_conv):
@@ -103,8 +128,8 @@ def make_hparam_string(learning_rate, use_two_fc, use_two_conv):
 def main():
 	for learning_rate in [1E-2]:#[1E-3, 1E-4, 1E-5]:
 
-		for use_two_fc in [True]:#[False, True]:
-			for use_two_conv in [True]:#[True, False]:
+		for use_two_fc in [False]:#[False, True]:
+			for use_two_conv in [True, False]:
 				hparam = make_hparam_string(learning_rate, use_two_fc, use_two_conv)
 				print('Starting run for %s' % hparam)
 
