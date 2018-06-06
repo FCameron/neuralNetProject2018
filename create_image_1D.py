@@ -51,7 +51,14 @@ def interpolation(xElem, yElem, zElem):
 			  np.linspace(zElem, zTarg, 1000)
 
 	# This is what actually takes the spline, mapping the best value it can to each of the 1000 values on the line
-	return ndimage.map_coordinates(skull, np.vstack((x,y,z)))
+	spline = ndimage.map_coordinates(skull, np.vstack((x,y,z)))
+
+	for i in range(len(spline)):
+		if spline[i] < -100:
+			spline[i] = 0
+
+	return spline
+
 
 # This program saves the splines so that I can use them
 def pickle_it(spline, pickleFile, numberSkull):
@@ -76,8 +83,11 @@ def splining(skull):
 	pickle_it(spline, skullSet, skullN)
 
 # This function reads csv files
-def ReadFile(FileName delimiter=","):
+def ReadFile(FileName, delimiter=","):
 	assert os.path.exists(FileName)
 
 	for l in csv.reader(open(FileName), delimiter=delimiter):
 		yield float(l[0]), float(l[1]), float(l[2])
+
+for i in range(3):
+	splining(i)

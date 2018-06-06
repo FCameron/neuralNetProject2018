@@ -13,6 +13,13 @@ def unpickle_it(pickleFile):
 	pickle_in.close()
 	return spline
 
+# This program saves the splines so that I can use them
+def pickle_it(spline, pickleFile, numberSkull):
+	pickle_out = open("CNN_linear_data/skullSpline/%s.pickle" % (pickleFile[numberSkull]),"wb")
+	pickle.dump(spline,pickle_out)
+	pickle_out.close()
+
+
 # [1000, 1] spline of the skull as input
 # Range -1000 -> 100 background noise, 100 -> 4000+ skull
 def classifier(spline):
@@ -55,6 +62,15 @@ def main():
 	skull_data = []
 	image_data = []
 	spline_data = []
+
+	# for i in range(len(skull_set)):
+	# 	spline = unpickle_it(skull_set[i])
+	# 	for j in range(len(spline)):
+	# 		print(j)
+	# 		for k in range(len(spline[j])):
+	# 			if spline[j][k] < -100:
+	# 				spline[j][k] = 0
+	# 	pickle_it(spline, skull_set, i)
 
 	# Pulling the data from storage
 	for i in range(len(skull_set)):

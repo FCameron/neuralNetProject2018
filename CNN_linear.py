@@ -7,7 +7,7 @@ import csv
 
 length = 1000
 nLabel = 1
-LOGDIR = "tensorboard4/"
+LOGDIR = "tensorboardphase4/"
 LABELS = "metadata.tsv"
 
 def conv_layer(input, size_in, size_out, name="conv"):
@@ -64,7 +64,7 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 		error2 = tf.abs(logits+6.28-y)
 		error3 = tf.abs(logits-6.28-y)
 		xent = tf.reduce_sum(tf.pow(tf.minimum(tf.minimum(error1, error2), error3), 2), name="xent")
-		# xent = tf.reduce_sum(tf.pow((logits-y)/y, 2), name="xent")
+		# xent = tf.reduce_sum(tf.pow((logits-y), 2), name="xent")
 		tf.summary.scalar("xent", xent)
 
 	with tf.name_scope("train"):
@@ -99,14 +99,14 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 	train_writer.add_graph(sess.graph)
 	test_writer = tf.summary.FileWriter(LOGDIR + hparam + "/test")
 
-	for i in range(2000):
+	for i in range(5000):
 		batch = get_data("train", 1000, length)
 		[i_global,train_accuracy, s] = sess.run([global_step,accuracy, summ], feed_dict={x:batch[0], y:batch[1]})
 		train_writer.add_summary(s, i_global)
 		if i_global % 5 == 0:
 			test_batch = get_data("test", 100, length)
 			# [test_accuracy] = sess.run([accuracy_summary], feed_dict={x:test_batch[0], y:test_batch[1]})
-			[print_accuracy, test_accuracy, y_estimation, y_truth] = sess.run([accuracy, accuracy_summary, logits, y], feed_dict={x:test_batch[0], y:test_batch[1]})
+			[skull, layer1, layer2, print_accuracy, test_accuracy, y_estimation, y_truth] = sess.run([x, conv1, conv_out, accuracy, accuracy_summary, logits, y], feed_dict={x:test_batch[0], y:test_batch[1]})
 			test_writer.add_summary(test_accuracy, i_global)
 			print("%s \t %s" % (i_global, print_accuracy))
 			saver.save(sess, save_path=save_dir, global_step=i_global)
@@ -117,6 +117,18 @@ def cnn_model(learning_rate, use_two_fc, use_two_conv, hparam):
 			with open(LOGDIR + hparam + '/estimationstep%s.csv' % i_global, "w") as output:		
 				writer = csv.writer(output, lineterminator='\n')		
 				for val in y_estimation:		
+					writer.writerow([val])
+			with open(LOGDIR + hparam + '/1conv%s.csv' % i_global, "w") as output:		
+				writer = csv.writer(output, lineterminator='\n')		
+				for val in layer1[0,:,0]:		
+					writer.writerow([val]) 
+			with open(LOGDIR + hparam + '/2conv%s.csv' % i_global, "w") as output:		
+				writer = csv.writer(output, lineterminator='\n')		
+				for val in layer2[0,:,0]:		
+					writer.writerow([val]) 
+			with open(LOGDIR + hparam + '/skull%s.csv' % i_global, "w") as output:		
+				writer = csv.writer(output, lineterminator='\n')		
+				for val in skull[0]:		
 					writer.writerow([val]) 
 		sess.run(train_step, feed_dict={x: batch[0], y: batch[1]})	
 
@@ -129,7 +141,7 @@ def main():
 	for learning_rate in [1E-2]:#[1E-3, 1E-4, 1E-5]:
 
 		for use_two_fc in [False]:#[False, True]:
-			for use_two_conv in [True, False]:
+			for use_two_conv in [True]: #[True, False]:
 				hparam = make_hparam_string(learning_rate, use_two_fc, use_two_conv)
 				print('Starting run for %s' % hparam)
 

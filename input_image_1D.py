@@ -72,7 +72,7 @@ def get_data(data_set, batch_size, image_length):
 
 		# Splitting the data into a training set and testing set
 		all_data = np.array(all_data)
-		test_ratio = int(len(all_data)*0.9)
+		test_ratio = int(len(all_data)*0.95)
 		train_data = all_data[:test_ratio,:]
 		test_data = all_data[test_ratio:,:]
 
@@ -108,7 +108,7 @@ def get_data(data_set, batch_size, image_length):
 	for j in range(begin, end):
 		i = j
 		if j >= len(data_used):
-			i = j - len(data_used)
+			i = j%len(data_used)
 		image_data[index] = data_used[i,0]
 		
 		if one_hot:
